@@ -1,0 +1,70 @@
+---
+- hosts: webservers
+  become: yes
+  vars:
+    server_name: nginx
+    package_name:
+      - php
+      - php-fpm
+    server_dest_path: /etc/nginx/sites-available/default
+    server_src_path: ./default
+    phpconfig_dest_path: /var/www/html/index.php
+    phpconfig_src_path: ./index.php
+    debug:
+    - msg: "Webservers: Hi, welcome users"
+  
+  tasks:
+    - name: Task1(Install  Nginx) 
+      apt: name=nginx state=latest update_cache=yes
+    
+    - name: Task2(Start Nginx)
+      service:
+        name: "{{server_name}}"
+        state: started
+
+    - name: Task3(Install Php and Php-fpm)
+      apt: 
+        name: ["{{package_name[0]}}", "{{package_name[1]}}"]
+        update_cache:  yes 
+        state: latest
+
+    - name: Task4(Copy Nginx Config File)
+      copy: 
+        dest: "{{server_dest_path}}"
+        src:  "{{server_src_path}}"
+
+    - name: Task5(Php Config File)
+      copy: 
+        dest: "{{phpconfig_dest_path}}"
+        src: "{{phpconfig_src_path}}"
+
+    - name: Task6(Restart Nginx)
+      service:
+        name: "{{server_name}}"
+        state: restarted
+
+- hosts: haproxy
+  become: yes
+  vars:
+    Mymessage: "Haproxy: Hi users, welcome to loadbalancer"
+    algorithm:  roundrobin
+    loadbalancer_name: haproxy
+    loadbal_src_path: haproxy.cfg.j2
+    loadbal_dest_path: /etc/haproxy/haproxy.cfg
+    haproxy_host_ipv4_address: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['address'] }}"
+  tasks:
+    - name: Task7(Install Haproxy)
+      become: yes 
+      apt: 
+        name: "{{loadbalancer_name}}" 
+        state:  present
+    
+    - name: Task8(Copy HAProxy Config File) 
+      template:
+        src:  "{{loadbal_src_path}}"
+        dest: "{{loadbal_dest_path}}"
+    - name: Task9(Restart HAproxy)
+      service:  
+        name: "{{loadbalancer_name}}"
+        state: restarted
+    
